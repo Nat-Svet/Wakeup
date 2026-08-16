@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
     return ok({
       balance: result.user.bonusBalance,
-      entry: serializeBonus(result.ledger),
+      entry: result.ledger ? serializeBonus(result.ledger) : null,
       user: serializeUser(result.user),
     });
   } catch (error) {
