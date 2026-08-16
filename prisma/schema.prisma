@@ -1,0 +1,233 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum DeliveryStatus {
+  mixing
+  baking
+  en_route
+  at_door
+}
+
+enum BunShape {
+  bunny
+  bear
+  volcano
+}
+
+enum GlazeColor {
+  raspberry
+  mango
+  spinach
+}
+
+enum SecretFilling {
+  caramel
+  banana
+}
+
+enum BonusReason {
+  neighbor_share
+  feedback_positive
+  feedback_compensation
+  kids_construction
+  order_spend
+  manual_adjust
+}
+
+enum FeedbackKind {
+  positive
+  negative
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  cancelled
+}
+
+enum UserRole {
+  user
+  admin
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  phone          String?  @unique
+  passwordHash   String
+  name           String
+  city           String   @default("")
+  street         String   @default("")
+  building       String
+  apartment      String
+  avatarUrl      String?
+  avatarInitials String
+  bonusBalance   Int      @default(0)
+  role           UserRole @default(user)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  subscription Subscription?
+  deliveries   Delivery[]
+  bonusLedger  BonusLedger[]
+  feedbacks    Feedback[]
+  sessions     AuthSession[]
+  payments     Payment[]
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Subscription {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  active    Boolean  @default(true)
+  paused    Boolean  @default(false)
+  price     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Dish {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String
+  imageUrl    String
+  /** Цена за штуку в рублях */
+  price       Int      @default(0)
+  calories    Int
+  protein     Int
+  fat         Int
+  carbs       Int
+  isKids      Boolean  @default(false)
+  isHealthy   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  items       DeliveryItem[]
+}
+
+model Delivery {
+  id          String         @id @default(cuid())
+  userId      String
+  date        DateTime
+  timeSlot    String
+  status      DeliveryStatus @default(mixing)
+  leaveAtDoor Boolean        @default(false)
+  silentPush  Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items    DeliveryItem[]
+  tracking DeliveryTracking?
+  feedback Feedback?
+  payments Payment[]
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model DeliveryItem {
+  id         String         @id @default(cuid())
+  deliveryId String
+  dishId     String
+  quantity   Int            @default(0)
+  shape      BunShape?
+  glaze      GlazeColor?
+  filling    SecretFilling?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  dish     Dish     @relation(fields: [dishId], references: [id])
+
+  @@index([deliveryId])
+}
+
+model DeliveryTracking {
+  id            String         @id @default(cuid())
+  deliveryId    String         @unique
+  status        DeliveryStatus @default(mixing)
+  etaMinutes    Int?
+  courierName   String?
+  courierPhone  String?
+  courierNote   String?
+  neighborBonusAwarded Boolean @default(false)
+  updatedAt     DateTime       @updatedAt
+  createdAt     DateTime       @default(now())
+
+  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+}
+
+model BonusLedger {
+  id        String      @id @default(cuid())
+  userId    String
+  amount    Int
+  reason    BonusReason
+  meta      Json?
+  createdAt DateTime    @default(now())
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model Feedback {
+  id         String       @id @default(cuid())
+  userId     String
+  deliveryId String       @unique
+  rating     Int
+  kind       FeedbackKind
+  tags       Json
+  comment    String?
+  bonusAwarded Int        @default(0)
+  createdAt  DateTime     @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  userId            String
+  deliveryId        String
+  status            PaymentStatus @default(pending)
+  currency          String        @default("RUB")
+  itemsTotal        Int
+  bonusSpent        Int           @default(0)
+  amountDue         Int
+  amountPaid        Int           @default(0)
+  idempotencyKey    String        @unique
+  provider          String        @default("mock")
+  providerPaymentId String?
+  receiptCode       String?
+  meta              Json?
+  paidAt            DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([deliveryId])
+}

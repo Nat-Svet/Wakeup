@@ -1,0 +1,17 @@
+# PostgreSQL for local API development
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: prosyvaisya-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: prosyvaisya
+      POSTGRES_PASSWORD: prosyvaisya
+      POSTGRES_DB: prosyvaisya_dev
+    volumes:
+      - prosyvaisya_pg:/var/lib/postgresql/data
+
+volumes:
+  prosyvaisya_pg:
