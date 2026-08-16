@@ -1,4 +1,5 @@
 import { ZodError } from "zod";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/http-auth";
 import { AccrueBonusBodySchema } from "@/domain/schemas";
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
       userId: user.id,
       amount: body.amount,
       reason: body.reason,
-      meta: body.meta,
+      meta: body.meta as Prisma.InputJsonValue | undefined,
     });
 
     return ok({
